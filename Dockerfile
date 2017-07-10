@@ -4,5 +4,6 @@ MAINTAINER cnaize
 
 RUN go get -u  github.com/cnaize/lifland
 
+WORKDIR /go/src/github.com/cnaize/lifland
 EXPOSE 8000
-ENTRYPOINT ./lifland
+CMD go run main.go
