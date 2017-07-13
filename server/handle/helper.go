@@ -99,7 +99,7 @@ func handleResultIn(w http.ResponseWriter, r *http.Request, dbi db.Interface) (*
 	tournament := dbi.GetOldestTournament()
 	if tournament == nil {
 		http.Error(w, "", http.StatusNotFound)
-		return nil, fmt.Errorf("tournament %d not found", tournament.Id())
+		return nil, fmt.Errorf("tournament not found")
 	}
 	winners := make(model.Fund)
 	for i, winner := range in.Winners {
