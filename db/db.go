@@ -93,6 +93,9 @@ func (db *DB) GetOldestTournament() *model.Tournament {
 
 	var tournament *model.Tournament
 	for _, t := range db.tournaments {
+		if !t.IsOpen() {
+			continue
+		}
 		if tournament == nil || t.StartTime().Before(tournament.StartTime()) {
 			tournament = t
 		}
