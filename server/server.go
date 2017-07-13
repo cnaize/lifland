@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/cnaize/lifland/db"
-	"github.com/cnaize/lifland/model"
 	h "github.com/cnaize/lifland/server/handle"
 )
 
@@ -51,18 +50,7 @@ func (s *Server) Run(port string) error {
 
 func (s *Server) syncFunds() {
 	for {
-		var funds []model.Fund
-		for _, fund := range s.dbi.GetFunds() {
-			for player, points := range fund {
-				if err := player.IncrBalance(points); err == nil {
-					delete(fund, player)
-				}
-			}
-			if len(fund) > 0 {
-				funds = append(funds, fund)
-			}
-		}
-		s.dbi.SetFunds(funds)
+		s.dbi.SyncFunds()
 		time.Sleep(s.syncDelay)
 	}
 }

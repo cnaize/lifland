@@ -114,20 +114,6 @@ func (db *DB) DelTournament(tournament *model.Tournament) {
 	delete(db.tournaments, tournament.Id())
 }
 
-func (db *DB) GetFunds() []model.Fund {
-	db.fmu.Lock()
-	defer db.fmu.Unlock()
-
-	return db.funds
-}
-
-func (db *DB) SetFunds(funds []model.Fund) {
-	db.fmu.Lock()
-	defer db.fmu.Unlock()
-
-	db.funds = funds
-}
-
 func (db *DB) AddFund(fund model.Fund) error {
 	if fund == nil {
 		return fmt.Errorf("AddFund: fund is nil")
@@ -138,6 +124,24 @@ func (db *DB) AddFund(fund model.Fund) error {
 
 	db.funds = append(db.funds, fund)
 	return nil
+}
+
+func (db *DB) SyncFunds() {
+	db.fmu.Lock()
+	defer db.fmu.Unlock()
+
+	var funds []model.Fund
+	for _, fund := range db.funds {
+		for player, points := range fund {
+			if err := player.IncrBalance(points); err == nil {
+				delete(fund, player)
+			}
+		}
+		if len(fund) > 0 {
+			funds = append(funds, fund)
+		}
+	}
+	db.funds = funds
 }
 
 func (db *DB) Reset() {

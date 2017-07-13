@@ -12,9 +12,8 @@ type Interface interface {
 	DelTournament(tournament *model.Tournament)
 	GetOldestTournament() *model.Tournament
 
-	GetFunds() []model.Fund
-	SetFunds(funds []model.Fund)
 	AddFund(fund model.Fund) error
+	SyncFunds()
 
 	Reset()
 }
