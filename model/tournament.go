@@ -76,6 +76,7 @@ func (t *Tournament) Close() (map[string]Fund, error) {
 	if !t.open {
 		return nil, fmt.Errorf("Tournament %d already closed", t.Id())
 	}
+	t.open = false
 	return t.funds, nil
 }
 

@@ -30,7 +30,7 @@ func handleAnnounceIn(w http.ResponseWriter, r *http.Request, dbi db.Interface) 
 	query := r.URL.Query()
 	tid, err := strconv.Atoi(query.Get("tournamentId"))
 	deposit, e := strconv.ParseFloat(query.Get("deposit"), 64)
-	if err != nil || e != nil || deposit <= 0 || dbi.GetTournament(tid) != nil {
+	if err != nil || e != nil || deposit <= 0 {
 		http.Error(w, "", http.StatusBadRequest)
 		return nil, fmt.Errorf("invalid input: %v", r.URL.RawQuery)
 	}

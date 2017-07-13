@@ -2,8 +2,9 @@ package model
 
 import (
 	"fmt"
-	"math"
 	"sync"
+
+	"github.com/cnaize/lifland/util"
 )
 
 type Player struct {
@@ -25,11 +26,15 @@ func (p *Player) Id() string {
 }
 
 func (p *Player) IncrBalance(points float64) error {
+	if points == 0.0 {
+		return nil
+	}
+
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	fmt.Printf("player %s: increasing balance %f by %f points\n", p.Id(), p.balance, points)
-	if p.balance+points < 0 || p.balance+math.Abs(points) < p.balance {
+	if util.Round(p.balance+points) < 0 {
 		return fmt.Errorf("player %s can't apply increasing balance %f by %f points",
 			p.Id(), p.balance, points)
 	}
