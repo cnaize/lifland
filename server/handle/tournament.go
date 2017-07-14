@@ -34,17 +34,24 @@ func Join(dbi db.Interface) http.HandlerFunc {
 			return
 		}
 		fund, err := makeFund(in.Backers, -in.Tournament.Deposit(), dbi)
+		defer func() {
+			if fund == nil {
+				return
+			}
+			if err := fund.Revert(); err != nil {
+				dbi.AddFund(fund)
+			}
+		}()
 		if err != nil {
 			fmt.Printf("ERROR: Join(): player %s can't make fund for tournament %d: %+v\n",
 				in.PlayerId, in.Tournament.Id(), err)
 			http.Error(w, "", http.StatusUnprocessableEntity)
-			return
-		}
-		if err := in.Tournament.AddPlayer(in.PlayerId, fund); err != nil {
+		} else if err := in.Tournament.AddPlayer(in.PlayerId, fund); err != nil {
 			fmt.Printf("ERROR: Join(): can't add player %s to tournament %d: %+v\n",
 				in.PlayerId, in.Tournament.Id(), err)
 			http.Error(w, "", http.StatusConflict)
-			return
+		} else {
+			fund = nil
 		}
 	}
 }
@@ -92,18 +99,7 @@ func makeFund(players []*model.Player, points float64, dbi db.Interface) (model.
 		fund[pl] = income
 	}
 
-	// revert if necessary
 	if len(fund) != len(players) {
-		for pl, income := range fund {
-			if err := pl.IncrBalance(-income); err == nil {
-				delete(fund, pl)
-			}
-		}
-		// if not all points reverted
-		if len(fund) != 0 {
-			// store in db for delayed revert
-			dbi.AddFund(fund)
-		}
 		return nil, fmt.Errorf("MakeFund(): failed")
 	}
 	return fund, nil

@@ -79,6 +79,7 @@ func TestTournamentJoin(t *testing.T) {
 		{"1", "10", []string{"invalid"}, http.StatusNotFound},
 		{"1", "10", []string{}, http.StatusOK},
 		{"1", "10", []string{"20"}, http.StatusOK},
+		{"2", "10", []string{"20"}, http.StatusUnprocessableEntity},
 	}
 
 	for _, test := range tests {
@@ -87,10 +88,12 @@ func TestTournamentJoin(t *testing.T) {
 		player10.IncrBalance(10)
 		player20.IncrBalance(20)
 		tourn1 := model.NewTournament(1, 10)
+		tourn2 := model.NewTournament(2, 30)
 		dbi := db.NewDB()
 		dbi.AddPlayer(player10)
 		dbi.AddPlayer(player20)
 		dbi.AddTournament(tourn1)
+		dbi.AddTournament(tourn2)
 
 		uri := makeUri(test.tournId, test.playerId, test.backers...)
 		r, _ := http.NewRequest(http.MethodPost, uri, nil)

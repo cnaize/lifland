@@ -132,8 +132,10 @@ func (db *DB) SyncFunds() {
 
 	var funds []model.Fund
 	for _, fund := range db.funds {
+		fmt.Println("syncing funds")
 		for player, points := range fund {
 			if err := player.IncrBalance(points); err == nil {
+				fmt.Printf("funds %f for player %s synced\n", points, player.Id())
 				delete(fund, player)
 			}
 		}

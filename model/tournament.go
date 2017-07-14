@@ -6,8 +6,6 @@ import (
 	"time"
 )
 
-type Fund map[*Player]float64
-
 type Tournament struct {
 	id        int
 	deposit   float64
