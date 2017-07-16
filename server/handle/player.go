@@ -29,10 +29,11 @@ func Take(dbi db.Interface) http.HandlerFunc {
 
 		if err := player.IncrBalance(-points); err != nil {
 			fmt.Printf("ERROR: Take(): can't take %f points from player %s: %+v\n",
-				points, player.Id(), err)
+				points, player.GetId(), err)
 			http.Error(w, "", http.StatusUnprocessableEntity)
 			return
 		}
+		dbi.Dump()
 	}
 }
 
@@ -58,10 +59,11 @@ func Fund(dbi db.Interface) http.HandlerFunc {
 		}
 		if err := player.IncrBalance(points); err != nil {
 			fmt.Printf("ERROR: Fund(): can't give %f points to player %s: %+v\n",
-				points, player.Id(), err)
+				points, player.GetId(), err)
 			http.Error(w, "", http.StatusUnprocessableEntity)
 			return
 		}
+		dbi.Dump()
 	}
 }
 
@@ -78,8 +80,8 @@ func Balance(dbi db.Interface) http.HandlerFunc {
 		}
 
 		data := map[string]interface{}{
-			"playerId": player.Id(),
-			"balance":  player.Balance(),
+			"playerId": player.GetId(),
+			"balance":  player.GetBalance(),
 		}
 		resp, err := json.Marshal(data)
 		if err != nil {

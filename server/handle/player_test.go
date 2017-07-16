@@ -40,6 +40,7 @@ func TestPlayerFund(t *testing.T) {
 		player10 := model.NewPlayer("10")
 		player10.IncrBalance(10)
 		dbi := db.NewDB()
+		dbi.SetDebug(true)
 		dbi.AddPlayer(player10)
 
 		uri := makeUri(test.playerId, test.points)
@@ -53,9 +54,9 @@ func TestPlayerFund(t *testing.T) {
 		if test.wantCode != http.StatusOK || player == nil {
 			continue
 		}
-		if util.Round(player.Balance()) != util.Round(test.wantBalance) {
+		if util.Round(player.GetBalance()) != util.Round(test.wantBalance) {
 			t.Errorf("invalid balance for uri %s: want %f, got %f",
-				uri, test.wantBalance, player.Balance())
+				uri, test.wantBalance, player.GetBalance())
 		}
 	}
 }
@@ -85,6 +86,7 @@ func TestPlayerTake(t *testing.T) {
 		player10 := model.NewPlayer("10")
 		player10.IncrBalance(10)
 		dbi := db.NewDB()
+		dbi.SetDebug(true)
 		dbi.AddPlayer(player10)
 
 		uri := makeUri(test.playerId, test.points)
@@ -98,9 +100,9 @@ func TestPlayerTake(t *testing.T) {
 		if test.wantCode != http.StatusOK || player == nil {
 			continue
 		}
-		if util.Round(player.Balance()) != util.Round(test.wantBalance) {
+		if util.Round(player.GetBalance()) != util.Round(test.wantBalance) {
 			t.Errorf("invalid balance for uri %s: want %f, got %f",
-				uri, test.wantBalance, player.Balance())
+				uri, test.wantBalance, player.GetBalance())
 		}
 	}
 }
@@ -117,6 +119,7 @@ func TestPlayerBalance(t *testing.T) {
 		"balance":  10.0,
 	}
 	dbi := db.NewDB()
+	dbi.SetDebug(true)
 	dbi.AddPlayer(player10)
 
 	tests := []struct {

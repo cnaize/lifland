@@ -1,28 +1,37 @@
 package db
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"sync"
 
 	"github.com/cnaize/lifland/model"
 )
 
+const (
+	dumpFileName string = "dump.db"
+)
+
+// NOTE:
+// fields open only for marshaling, don't use it directly
 type DB struct {
+	debug       bool
 	pmu         sync.Mutex
-	players     map[string]*model.Player
+	Players     map[string]*model.Player `json:"players,omitempty"`
 	tmu         sync.Mutex
-	tournaments map[int]*model.Tournament
+	Tournaments map[int]*model.Tournament `json:"tournaments,omitempty"`
 	fmu         sync.Mutex
-	funds       []model.Fund
+	Funds       []model.Fund `jons:"funds,omitempty"`
 }
 
 var _ Interface = NewDB()
 
 func NewDB() *DB {
-	fmt.Println("creating db")
 	return &DB{
-		players:     make(map[string]*model.Player),
-		tournaments: make(map[int]*model.Tournament),
+		Players:     make(map[string]*model.Player),
+		Tournaments: make(map[int]*model.Tournament),
 	}
 }
 
@@ -30,7 +39,7 @@ func (db *DB) GetPlayer(id string) *model.Player {
 	db.pmu.Lock()
 	defer db.pmu.Unlock()
 
-	if player, ok := db.players[id]; ok {
+	if player, ok := db.Players[id]; ok {
 		return player
 	}
 	return nil
@@ -44,10 +53,10 @@ func (db *DB) AddPlayer(player *model.Player) error {
 	db.pmu.Lock()
 	defer db.pmu.Unlock()
 
-	if _, ok := db.players[player.Id()]; ok {
-		return fmt.Errorf("AddPlayer: player %s already exists", player.Id())
+	if _, ok := db.Players[player.GetId()]; ok {
+		return fmt.Errorf("AddPlayer: player %s already exists", player.GetId())
 	}
-	db.players[player.Id()] = player
+	db.Players[player.GetId()] = player
 	return nil
 }
 
@@ -59,14 +68,14 @@ func (db *DB) DelPlayer(player *model.Player) {
 	db.pmu.Lock()
 	defer db.pmu.Unlock()
 
-	delete(db.players, player.Id())
+	delete(db.Players, player.GetId())
 }
 
 func (db *DB) GetTournament(id int) *model.Tournament {
 	db.tmu.Lock()
 	defer db.tmu.Unlock()
 
-	if tournament, ok := db.tournaments[id]; ok {
+	if tournament, ok := db.Tournaments[id]; ok {
 		return tournament
 	}
 	return nil
@@ -80,10 +89,10 @@ func (db *DB) AddTournament(tournament *model.Tournament) error {
 	db.tmu.Lock()
 	defer db.tmu.Unlock()
 
-	if _, ok := db.tournaments[tournament.Id()]; ok {
-		return fmt.Errorf("AddTournament: tournament %d already exists", tournament.Id())
+	if _, ok := db.Tournaments[tournament.Id]; ok {
+		return fmt.Errorf("AddTournament: tournament %d already exists", tournament.Id)
 	}
-	db.tournaments[tournament.Id()] = tournament
+	db.Tournaments[tournament.Id] = tournament
 	return nil
 }
 
@@ -92,11 +101,11 @@ func (db *DB) GetOldestTournament() *model.Tournament {
 	defer db.tmu.Unlock()
 
 	var tournament *model.Tournament
-	for _, t := range db.tournaments {
+	for _, t := range db.Tournaments {
 		if !t.IsOpen() {
 			continue
 		}
-		if tournament == nil || t.StartTime().Before(tournament.StartTime()) {
+		if tournament == nil || t.GetStartTime().Before(tournament.GetStartTime()) {
 			tournament = t
 		}
 	}
@@ -111,7 +120,7 @@ func (db *DB) DelTournament(tournament *model.Tournament) {
 	db.tmu.Lock()
 	defer db.tmu.Unlock()
 
-	delete(db.tournaments, tournament.Id())
+	delete(db.Tournaments, tournament.Id)
 }
 
 func (db *DB) AddFund(fund model.Fund) error {
@@ -122,40 +131,109 @@ func (db *DB) AddFund(fund model.Fund) error {
 	db.fmu.Lock()
 	defer db.fmu.Unlock()
 
-	db.funds = append(db.funds, fund)
+	db.Funds = append(db.Funds, fund)
 	return nil
 }
 
 func (db *DB) SyncFunds() {
+	synced := false
 	db.fmu.Lock()
-	defer db.fmu.Unlock()
+	defer func() {
+		if synced {
+			db.lockAll(&db.fmu)
+			defer db.unlockAll(&db.fmu)
+			db.dump()
+		}
+		db.fmu.Unlock()
+	}()
 
 	var funds []model.Fund
-	for _, fund := range db.funds {
+	for _, fund := range db.Funds {
 		fmt.Println("syncing funds")
-		for player, points := range fund {
+		for playerId, points := range fund {
+			player := db.GetPlayer(playerId)
+			if player == nil {
+				fmt.Printf("ERROR: can't sync funds: player %s not found\n", playerId)
+				continue
+			}
 			if err := player.IncrBalance(points); err == nil {
-				fmt.Printf("funds %f for player %s synced\n", points, player.Id())
-				delete(fund, player)
+				fmt.Printf("funds %f for player %s synced\n", points, player.GetId())
+				synced = true
+				delete(fund, playerId)
 			}
 		}
 		if len(fund) > 0 {
 			funds = append(funds, fund)
 		}
 	}
-	db.funds = funds
+	db.Funds = funds
 }
 
 func (db *DB) Reset() {
-	db.pmu.Lock()
-	db.tmu.Lock()
-	db.fmu.Lock()
-	defer db.pmu.Unlock()
-	defer db.tmu.Unlock()
-	defer db.fmu.Unlock()
+	db.lockAll(nil)
+	defer db.unlockAll(nil)
 
-	db.players = make(map[string]*model.Player)
-	db.tournaments = make(map[int]*model.Tournament)
-	db.funds = []model.Fund{}
+	os.Remove(dumpFileName)
+	db.Players = make(map[string]*model.Player)
+	db.Tournaments = make(map[int]*model.Tournament)
+	db.Funds = []model.Fund{}
 	fmt.Println("db reseted")
+}
+
+func (db *DB) SetDebug(debug bool) {
+	db.debug = !db.debug
+}
+
+func (db *DB) Dump() {
+	db.lockAll(nil)
+	defer db.unlockAll(nil)
+
+	db.dump()
+}
+
+func (db *DB) Restore() {
+	if b, err := ioutil.ReadFile(dumpFileName); err == nil {
+		fmt.Println("restoring db")
+		if err := json.Unmarshal(b, db); err != nil {
+			fmt.Printf("db restore failed: %+v\n", err)
+			return
+		}
+		fmt.Println("db restore: success")
+		return
+	}
+}
+
+// NOTE: not thread safe
+func (db *DB) dump() {
+	if db.debug {
+		return
+	}
+
+	fmt.Println("dumping db")
+	dump, err := json.Marshal(db)
+	if err != nil {
+		fmt.Printf("ERROR: db dump failed: can't marshal data: %+v\n", err)
+		return
+	}
+	if err := ioutil.WriteFile(dumpFileName, dump, 0644); err != nil {
+		fmt.Printf("ERROR: db dump failed: can't write to file: %+v\n", err)
+		return
+	}
+	fmt.Println("db dump: success")
+}
+
+func (db *DB) lockAll(except *sync.Mutex) {
+	for _, m := range []*sync.Mutex{&db.pmu, &db.tmu, &db.fmu} {
+		if m != except {
+			m.Lock()
+		}
+	}
+}
+
+func (db *DB) unlockAll(except *sync.Mutex) {
+	for _, m := range []*sync.Mutex{&db.pmu, &db.tmu, &db.fmu} {
+		if m != except {
+			m.Unlock()
+		}
+	}
 }

@@ -19,10 +19,11 @@ func Announce(dbi db.Interface) http.HandlerFunc {
 		tournament := model.NewTournament(in.TournamentId, in.Deposit)
 		if err = dbi.AddTournament(tournament); err != nil {
 			fmt.Printf("ERROR: Announce(): can't add tournament %d: %+v\n",
-				tournament.Id(), err)
+				tournament.GetId(), err)
 			http.Error(w, "", http.StatusConflict)
 			return
 		}
+		dbi.Dump()
 	}
 }
 
@@ -33,24 +34,23 @@ func Join(dbi db.Interface) http.HandlerFunc {
 			fmt.Printf("ERROR: Join(): can't handle input: %+v\n", err)
 			return
 		}
-		fund, err := makeFund(in.Backers, -in.Tournament.Deposit(), dbi)
+		fund, err := makeFund(in.Backers, -in.Tournament.GetDeposit(), dbi)
 		defer func() {
 			if fund == nil {
 				return
 			}
-			if err := fund.Revert(); err != nil {
-				dbi.AddFund(fund)
-			}
+			dbi.AddFund(fund.Invert())
 		}()
 		if err != nil {
 			fmt.Printf("ERROR: Join(): player %s can't make fund for tournament %d: %+v\n",
-				in.PlayerId, in.Tournament.Id(), err)
+				in.PlayerId, in.Tournament.GetId(), err)
 			http.Error(w, "", http.StatusUnprocessableEntity)
 		} else if err := in.Tournament.AddPlayer(in.PlayerId, fund); err != nil {
 			fmt.Printf("ERROR: Join(): can't add player %s to tournament %d: %+v\n",
-				in.PlayerId, in.Tournament.Id(), err)
+				in.PlayerId, in.Tournament.GetId(), err)
 			http.Error(w, "", http.StatusConflict)
 		} else {
+			dbi.Dump()
 			fund = nil
 		}
 	}
@@ -66,41 +66,49 @@ func Result(dbi db.Interface) http.HandlerFunc {
 		funds, err := in.Tournament.Close()
 		if err != nil {
 			fmt.Printf("ERROR: Result(): can't close tournament %d: %+v\n",
-				in.Tournament.Id(), err)
+				in.Tournament.GetId(), err)
 			http.Error(w, "", http.StatusConflict)
 			return
 		}
-		for winner, prize := range in.Winners {
-			var players []*model.Player
-			for player, _ := range funds[winner.Id()] {
-				players = append(players, player)
+		for winnerId, prize := range in.Winners {
+			var playerIds []string
+			for playerId, _ := range funds[winnerId] {
+				playerIds = append(playerIds, playerId)
 			}
-			makeFund(players, prize, dbi)
+			if fund, err := makeFund(playerIds, prize, dbi); err != nil {
+				dbi.AddFund(fund.Invert())
+			}
 		}
+		dbi.Dump()
 	}
 }
 
-func makeFund(players []*model.Player, points float64, dbi db.Interface) (model.Fund, error) {
+func makeFund(playerIds []string, points float64, dbi db.Interface) (model.Fund, error) {
 	fund := model.Fund{}
-	perPlayer := util.Round(points / util.Round(float64(len(players))))
-	for i, pl := range players {
+	perPlayer := util.Round(points / util.Round(float64(len(playerIds))))
+	for i, id := range playerIds {
 		income := perPlayer
 		// take rest of points from the player
 		// NOTE: the player placed in last position
-		if i == len(players)-1 {
-			income = points - float64(len(players)-1)*perPlayer
+		if i == len(playerIds)-1 {
+			income = points - float64(len(playerIds)-1)*perPlayer
 		}
 
-		if err := pl.IncrBalance(income); err != nil {
-			fmt.Printf("MakeFund(): can't increase player %s balance by %f points: %+v\n",
-				pl.Id(), points, err)
+		player := dbi.GetPlayer(id)
+		if player == nil {
+			fmt.Printf("ERROR: makeFund(): player %s not found", id)
 			break
 		}
-		fund[pl] = income
+		if err := player.IncrBalance(income); err != nil {
+			fmt.Printf("makeFund(): can't increase player %s balance by %f points: %+v\n",
+				id, points, err)
+			break
+		}
+		fund[id] = income
 	}
 
-	if len(fund) != len(players) {
-		return nil, fmt.Errorf("MakeFund(): failed")
+	if len(fund) != len(playerIds) {
+		return nil, fmt.Errorf("makeFund(): failed")
 	}
 	return fund, nil
 }

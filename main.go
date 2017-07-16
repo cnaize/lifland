@@ -4,7 +4,6 @@ import (
 	"flag"
 	"time"
 
-	"github.com/cnaize/lifland/db"
 	"github.com/cnaize/lifland/server"
 )
 
@@ -18,6 +17,6 @@ func init() {
 
 func main() {
 	flag.Parse()
-	s := server.NewServer(db.NewDB(), syncDelay)
+	s := server.NewServer(syncDelay)
 	panic(s.Run("8000"))
 }

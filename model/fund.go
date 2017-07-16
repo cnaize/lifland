@@ -1,21 +1,11 @@
 package model
 
-import "fmt"
+type Fund map[string]float64
 
-type Fund map[*Player]float64
-
-func (f Fund) Revert() error {
-	fmt.Println("reverting funds")
-	for pl, income := range f {
-		if err := pl.IncrBalance(-income); err == nil {
-			fmt.Printf("funds %f for player %s reverted, balance %f\n",
-				-income, pl.Id(), pl.Balance())
-			delete(f, pl)
-		}
+func (f Fund) Invert() Fund {
+	fund := Fund{}
+	for id, income := range f {
+		fund[id] = -income
 	}
-	// if not all points reverted
-	if len(f) != 0 {
-		return fmt.Errorf("reverting failed")
-	}
-	return nil
+	return fund
 }

@@ -18,7 +18,7 @@ type inAnnounce struct {
 type inJoin struct {
 	Tournament *model.Tournament
 	PlayerId   string
-	Backers    []*model.Player
+	Backers    []string
 }
 
 type inResult struct {
@@ -54,7 +54,6 @@ func handleJoinIn(w http.ResponseWriter, r *http.Request, dbi db.Interface) (*in
 	}
 	// NOTE: the player placed in last position
 	qplayers := append(query["backerId"], query.Get("playerId"))
-	var backers []*model.Player
 	for i, backerId := range qplayers {
 		// check duplicates
 		for j, id := range qplayers {
@@ -70,12 +69,11 @@ func handleJoinIn(w http.ResponseWriter, r *http.Request, dbi db.Interface) (*in
 			http.Error(w, "", http.StatusNotFound)
 			return nil, fmt.Errorf("player %s not found", backerId)
 		}
-		backers = append(backers, backer)
 	}
 	return &inJoin{
 		Tournament: tournament,
 		PlayerId:   query.Get("playerId"),
-		Backers:    backers,
+		Backers:    qplayers,
 	}, nil
 }
 
@@ -107,13 +105,14 @@ func handleResultIn(w http.ResponseWriter, r *http.Request, dbi db.Interface) (*
 			if i != j && winner == wnr {
 				http.Error(w, "", http.StatusBadRequest)
 				return nil, fmt.Errorf("passed duplicated player %s to tournament %d",
-					winner.PlayerId, tournament.Id())
+					winner.PlayerId, tournament.GetId())
 			}
 		}
 
 		if !tournament.HasPlayer(winner.PlayerId) {
 			http.Error(w, "", http.StatusBadRequest)
-			return nil, fmt.Errorf("player %s not in tournament %d", winner.PlayerId, tournament.Id())
+			return nil, fmt.Errorf("player %s not in tournament %d",
+				winner.PlayerId, tournament.GetId())
 		}
 		if winner.Prize <= 0 {
 			http.Error(w, "", http.StatusBadRequest)
@@ -124,7 +123,7 @@ func handleResultIn(w http.ResponseWriter, r *http.Request, dbi db.Interface) (*
 			http.Error(w, "", http.StatusNotFound)
 			return nil, fmt.Errorf("player %s not found", winner.PlayerId)
 		}
-		winners[player] = winner.Prize
+		winners[winner.PlayerId] = winner.Prize
 	}
 	return &inResult{
 		Tournament: tournament,

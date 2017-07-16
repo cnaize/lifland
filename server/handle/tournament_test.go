@@ -35,6 +35,7 @@ func TestTournamentAnnounce(t *testing.T) {
 	for _, test := range tests {
 		tourn1 := model.NewTournament(1, 10)
 		dbi := db.NewDB()
+		dbi.SetDebug(true)
 		dbi.AddTournament(tourn1)
 
 		uri := makeUri(test.tournId, test.deposit)
@@ -49,9 +50,9 @@ func TestTournamentAnnounce(t *testing.T) {
 		if test.wantCode != http.StatusOK || tournament == nil {
 			continue
 		}
-		if util.Round(tournament.Deposit()) != util.Round(test.wantDeposit) {
+		if util.Round(tournament.GetDeposit()) != util.Round(test.wantDeposit) {
 			t.Errorf("invalid deposit for uri %s: want %f, got %f",
-				uri, test.wantDeposit, tournament.Deposit())
+				uri, test.wantDeposit, tournament.GetDeposit())
 		}
 	}
 }
@@ -90,6 +91,7 @@ func TestTournamentJoin(t *testing.T) {
 		tourn1 := model.NewTournament(1, 10)
 		tourn2 := model.NewTournament(2, 30)
 		dbi := db.NewDB()
+		dbi.SetDebug(true)
 		dbi.AddPlayer(player10)
 		dbi.AddPlayer(player20)
 		dbi.AddTournament(tourn1)
@@ -107,23 +109,23 @@ func TestTournamentJoin(t *testing.T) {
 		if test.wantCode != http.StatusOK || tournament == nil {
 			continue
 		}
-		if test.playerId != player10.Id() ||
-			(len(test.backers) > 0 && test.backers[0] != player20.Id()) {
+		if test.playerId != player10.GetId() ||
+			(len(test.backers) > 0 && test.backers[0] != player20.GetId()) {
 			continue
 		}
 		if len(test.backers) == 0 {
-			if player10.Balance() != 0.0 {
+			if player10.GetBalance() != 0.0 {
 				t.Errorf("invalid balance for uri %s: want %f, got %f",
-					uri, 0.0, player10.Balance())
+					uri, 0.0, player10.GetBalance())
 			}
 		} else if len(test.backers) == 1 {
-			if player10.Balance() != 5.0 {
+			if player10.GetBalance() != 5.0 {
 				t.Errorf("invalid balance for uri %s: want %f, got %f",
-					uri, 5.0, player10.Balance())
+					uri, 5.0, player10.GetBalance())
 			}
-			if player20.Balance() != 15.0 {
+			if player20.GetBalance() != 15.0 {
 				t.Errorf("invalid balance for uri %s: want %f, got %f",
-					uri, 15.0, player20.Balance())
+					uri, 15.0, player20.GetBalance())
 			}
 		}
 	}

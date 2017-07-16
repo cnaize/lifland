@@ -6,56 +6,58 @@ import (
 	"time"
 )
 
+// NOTE:
+// fields opened only for marshaling, don't use it directly
 type Tournament struct {
-	id        int
-	deposit   float64
-	startTime time.Time
+	Id        int       `json:"id"`
+	Deposit   float64   `json:"deposit"`
+	StartTime time.Time `json:"startTime"`
 
 	mu   sync.Mutex
-	open bool
+	Open bool `json:"open"`
 	// backers (including player) and their income by the player id
-	funds map[string]Fund
+	Funds map[string]Fund `json:"funds"`
 }
 
 func NewTournament(id int, deposit float64) *Tournament {
 	fmt.Printf("creating tournament %d, deposit: %f\n", id, deposit)
 	return &Tournament{
-		id:        id,
-		deposit:   deposit,
-		startTime: time.Now(),
-		open:      true,
-		funds:     make(map[string]Fund),
+		Id:        id,
+		Deposit:   deposit,
+		StartTime: time.Now(),
+		Open:      true,
+		Funds:     make(map[string]Fund),
 	}
 }
 
-func (t *Tournament) Id() int {
-	return t.id
+func (t *Tournament) GetId() int {
+	return t.Id
 }
 
-func (t *Tournament) Deposit() float64 {
-	return t.deposit
+func (t *Tournament) GetDeposit() float64 {
+	return t.Deposit
 }
 
-func (t *Tournament) StartTime() time.Time {
-	return t.startTime
+func (t *Tournament) GetStartTime() time.Time {
+	return t.StartTime
 }
 
 func (t *Tournament) AddPlayer(id string, fund Fund) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	if !t.open {
-		return fmt.Errorf("Tournament %d already closed", t.Id())
+	if !t.Open {
+		return fmt.Errorf("Tournament %d already closed", t.Id)
 	}
 	if fund == nil {
-		return fmt.Errorf("Player %s trying to join tournament %d without fund", id, t.Id())
+		return fmt.Errorf("Player %s trying to join tournament %d without fund", id, t.Id)
 	}
-	if _, ok := t.funds[id]; ok {
-		return fmt.Errorf("Player %s already joined tournament %d", id, t.Id())
+	if _, ok := t.Funds[id]; ok {
+		return fmt.Errorf("Player %s already joined tournament %d", id, t.Id)
 	}
 
-	fmt.Printf("player %s joined tournament %d\n", id, t.Id())
-	t.funds[id] = fund
+	fmt.Printf("player %s joined tournament %d\n", id, t.Id)
+	t.Funds[id] = fund
 	return nil
 }
 
@@ -63,7 +65,7 @@ func (t *Tournament) HasPlayer(id string) bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	_, ok := t.funds[id]
+	_, ok := t.Funds[id]
 	return ok
 }
 
@@ -71,16 +73,16 @@ func (t *Tournament) Close() (map[string]Fund, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	if !t.open {
-		return nil, fmt.Errorf("Tournament %d already closed", t.Id())
+	if !t.Open {
+		return nil, fmt.Errorf("Tournament %d already closed", t.Id)
 	}
-	t.open = false
-	return t.funds, nil
+	t.Open = false
+	return t.Funds, nil
 }
 
 func (t *Tournament) IsOpen() bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	return t.open
+	return t.Open
 }

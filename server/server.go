@@ -15,7 +15,10 @@ type Server struct {
 	mux       *http.ServeMux
 }
 
-func NewServer(dbi db.Interface, syncDelay time.Duration) *Server {
+func NewServer(syncDelay time.Duration) *Server {
+	dbi := db.NewDB()
+	dbi.Restore()
+
 	mux := http.NewServeMux()
 
 	// common

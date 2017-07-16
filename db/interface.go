@@ -15,5 +15,9 @@ type Interface interface {
 	AddFund(fund model.Fund) error
 	SyncFunds()
 
+	Dump()
+	Restore()
 	Reset()
+
+	SetDebug(debug bool)
 }

@@ -7,22 +7,24 @@ import (
 	"github.com/cnaize/lifland/util"
 )
 
+// NOTE:
+// fields open only for marshaling, don't use it directly
 type Player struct {
-	id string
+	Id string `json:"id"`
 
 	mu      sync.Mutex
-	balance float64
+	Balance float64 `json:"balance"`
 }
 
 func NewPlayer(id string) *Player {
 	fmt.Printf("creating player %s\n", id)
 	return &Player{
-		id: id,
+		Id: id,
 	}
 }
 
-func (p *Player) Id() string {
-	return p.id
+func (p *Player) GetId() string {
+	return p.Id
 }
 
 func (p *Player) IncrBalance(points float64) error {
@@ -33,18 +35,19 @@ func (p *Player) IncrBalance(points float64) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	fmt.Printf("player %s: increasing balance %f by %f points\n", p.Id(), p.balance, points)
-	if util.Round(p.balance+points) < 0 {
+	fmt.Printf("player %s: increasing balance %f by %f points\n",
+		p.Id, p.Balance, points)
+	if util.Round(p.Balance+points) < 0 {
 		return fmt.Errorf("player %s can't apply increasing balance %f by %f points",
-			p.Id(), p.balance, points)
+			p.Id, p.Balance, points)
 	}
-	p.balance += points
+	p.Balance += points
 	return nil
 }
 
-func (p *Player) Balance() float64 {
+func (p *Player) GetBalance() float64 {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	return p.balance
+	return p.Balance
 }
